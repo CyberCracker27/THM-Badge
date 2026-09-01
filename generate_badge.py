@@ -19,8 +19,8 @@ def fetch_stats():
 
         # Step 2: Extract userPublicId from the HTML source
         html = page.content()
-        # Look for something like "userPublicId":12345 or userPublicId=12345
-        match = re.search(r'"userPublicId"\s*:\s*(\d+)', html)
+        # Look for something like "userPublicId":12345, "userPublicId":"12345" or userPublicId=12345
+        match = re.search(r'"userPublicId"\s*:\s*"?(\d+)"?', html)
         if not match:
             match = re.search(r'userPublicId[=:]\s*["\']?(\d+)["\']?', html)
         if match:
@@ -28,7 +28,8 @@ def fetch_stats():
             print(f"Extracted userPublicId: {user_id}")
         else:
             # Fallback: try to get it from a meta tag or data attribute
-            user_id = page.locator('meta[name="user-id"]').get_attribute('content')
+            meta_tag = page.query_selector('meta[name="user-id"]')
+            user_id = meta_tag.get_attribute('content') if meta_tag else None
             if not user_id:
                 # If still not found, we can't proceed
                 browser.close()
