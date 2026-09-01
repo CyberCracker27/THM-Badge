@@ -1,44 +1,30 @@
 import os
 import datetime
-import re
 from playwright.sync_api import sync_playwright
 from PIL import Image, ImageDraw, ImageFont
 
 USERNAME = os.environ.get('THM_USERNAME', 'CyberCracker27')
-PROFILE_URL = f'https://tryhackme.com/p/{USERNAME}'
+USER_PUBLIC_ID = '349854'  # Hardcoded – you can change if needed
 
 def fetch_stats():
     with sync_playwright() as p:
+        # 1. Launch a realistic browser context
         browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
+        context = browser.new_context(
+            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            viewport={'width': 1280, 'height': 720}
+        )
+        page = context.new_page()
 
-        # Step 1: Load the profile page with extra time
-        page.goto(PROFILE_URL, wait_until='networkidle', timeout=60000)
-        # Wait a bit more for any dynamic content
-        page.wait_for_timeout(5000)
+        # 2. First visit the homepage – this sets the required session cookies
+        print("Visiting homepage to get session...")
+        page.goto('https://tryhackme.com', wait_until='networkidle', timeout=30000)
 
-        # Step 2: Extract userPublicId from the HTML source
-        html = page.content()
-        # Look for something like "userPublicId":12345 or userPublicId=12345
-        match = re.search(r'"userPublicId"\s*:\s*(\d+)', html)
-        if not match:
-            match = re.search(r'userPublicId[=:]\s*["\']?(\d+)["\']?', html)
-        if match:
-            user_id = match.group(1)
-            print(f"Extracted userPublicId: {user_id}")
-        else:
-            # Fallback: try to get it from a meta tag or data attribute
-            user_id = page.locator('meta[name="user-id"]').get_attribute('content')
-            if not user_id:
-                # If still not found, we can't proceed
-                browser.close()
-                raise Exception("Could not find userPublicId on the page.")
-            print(f"Found userPublicId from meta: {user_id}")
-
-        # Step 3: Use the browser's fetch to call the API directly
+        # 3. Now the browser has cookies – we can fetch the API directly
+        print("Fetching API data...")
         api_data = page.evaluate(f"""
             async () => {{
-                const response = await fetch('/api/v2/public-profile?userPublicId={user_id}', {{
+                const response = await fetch('/api/v2/public-profile?userPublicId={USER_PUBLIC_ID}', {{
                     headers: {{ 'Accept': 'application/json' }}
                 }});
                 if (!response.ok) throw new Error('API fetch failed');
@@ -46,7 +32,9 @@ def fetch_stats():
             }}
         """)
 
-        # Step 4: Extract data
+        browser.close()
+
+        # Extract data
         username = api_data.get('username', USERNAME)
         level = api_data.get('level', 0)
         rooms = api_data.get('roomsCompleted', 0)
@@ -58,8 +46,7 @@ def fetch_stats():
         else:
             days_active = 0
 
-        browser.close()
-        return username, user_id, level, rooms, rank, days_active
+        return username, USER_PUBLIC_ID, level, rooms, rank, days_active
 
 def draw_badge(username, user_id, level, rooms, rank, days_active):
     width, height = 500, 180
