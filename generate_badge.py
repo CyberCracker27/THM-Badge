@@ -1,5 +1,6 @@
 import os
 import datetime
+import re
 from playwright.sync_api import sync_playwright
 from PIL import Image, ImageDraw, ImageFont
 
@@ -8,7 +9,7 @@ PROFILE_URL = f'https://tryhackme.com/p/{USERNAME}'
 
 def fetch_stats():
     with sync_playwright() as p:
-        # Launch browser with a realistic user agent
+        # Realistic browser context
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(
             user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -16,35 +17,58 @@ def fetch_stats():
         )
         page = context.new_page()
 
-        # Step 1: Visit homepage to get session cookies
+        # Visit homepage to establish session
         print("Visiting homepage to get session...")
         page.goto('https://tryhackme.com', wait_until='networkidle', timeout=30000)
 
-        # Step 2: Navigate to profile and intercept the API response
-        print("Navigating to profile and capturing API response...")
-        with page.expect_response(
-            lambda r: '/api/v2/public-profile?userPublicId=' in r.url,
-            timeout=15000
-        ) as response_info:
-            page.goto(PROFILE_URL, wait_until='networkidle', timeout=30000)
+        # Now navigate to profile
+        print("Navigating to profile...")
+        page.goto(PROFILE_URL, wait_until='networkidle', timeout=30000)
+        page.wait_for_timeout(3000)  # extra time for any lazy loading
 
-        api_response = response_info.value
-        data = api_response.json()
-        browser.close()
+        # Try to get the userPublicId from the page source (for badge)
+        html = page.content()
+        match = re.search(r'"userPublicId"\s*:\s*(\d+)', html)
+        if match:
+            user_id = match.group(1)
+        else:
+            user_id = 'N/A'
 
-        # Extract data
-        username = data.get('username', USERNAME)
-        user_id = data.get('userPublicId', 'N/A')
-        level = data.get('level', 0)
-        rooms = data.get('roomsCompleted', 0)
-        rank = data.get('rank', 'N/A')
-        created = data.get('created')
-        if created:
-            created_date = datetime.datetime.fromisoformat(created.replace('Z', '+00:00'))
-            days_active = (datetime.datetime.now(datetime.timezone.utc) - created_date).days
+        # Scrape stats from the DOM
+        # The selectors are based on common patterns on TryHackMe
+        # We'll use flexible selectors with fallbacks
+
+        # Username
+        username_element = page.locator('.profile-header .username')
+        if username_element.count():
+            username = username_element.inner_text().strip()
+        else:
+            username = USERNAME
+
+        # Level – try several possible selectors
+        level_text = page.locator('.level-badge .level, .level-display, [data-testid="level"]').first.inner_text().strip()
+        level = int(re.search(r'\d+', level_text).group()) if re.search(r'\d+', level_text) else 0
+
+        # Rooms completed
+        rooms_text = page.locator('.stat-rooms .stat-value, .rooms-completed, [data-testid="rooms"]').first.inner_text().strip()
+        rooms = int(re.search(r'\d+', rooms_text).group()) if re.search(r'\d+', rooms_text) else 0
+
+        # Rank
+        rank_text = page.locator('.stat-rank .stat-value, .rank-display, [data-testid="rank"]').first.inner_text().strip()
+        rank = re.sub(r'[^0-9]', '', rank_text) if rank_text else 'N/A'
+        if not rank:
+            rank = 'N/A'
+
+        # Joined date (for days active)
+        joined_text = page.locator('.stat-joined .stat-value, .joined-date, [data-testid="joined"]').first.inner_text().strip()
+        match_date = re.search(r'(\d{4}-\d{2}-\d{2})', joined_text)
+        if match_date:
+            created_date = datetime.datetime.strptime(match_date.group(1), '%Y-%m-%d')
+            days_active = (datetime.datetime.now() - created_date).days
         else:
             days_active = 0
 
+        browser.close()
         return username, user_id, level, rooms, rank, days_active
 
 def draw_badge(username, user_id, level, rooms, rank, days_active):
