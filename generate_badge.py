@@ -4,11 +4,11 @@ from playwright.sync_api import sync_playwright
 from PIL import Image, ImageDraw, ImageFont
 
 USERNAME = os.environ.get('THM_USERNAME', 'CyberCracker27')
-USER_PUBLIC_ID = '349854'  # Hardcoded – you can change if needed
+PROFILE_URL = f'https://tryhackme.com/p/{USERNAME}'
 
 def fetch_stats():
     with sync_playwright() as p:
-        # 1. Launch a realistic browser context
+        # Launch browser with a realistic user agent
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(
             user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -16,37 +16,36 @@ def fetch_stats():
         )
         page = context.new_page()
 
-        # 2. First visit the homepage – this sets the required session cookies
+        # Step 1: Visit homepage to get session cookies
         print("Visiting homepage to get session...")
         page.goto('https://tryhackme.com', wait_until='networkidle', timeout=30000)
 
-        # 3. Now the browser has cookies – we can fetch the API directly
-        print("Fetching API data...")
-        api_data = page.evaluate(f"""
-            async () => {{
-                const response = await fetch('/api/v2/public-profile?userPublicId={USER_PUBLIC_ID}', {{
-                    headers: {{ 'Accept': 'application/json' }}
-                }});
-                if (!response.ok) throw new Error('API fetch failed');
-                return await response.json();
-            }}
-        """)
+        # Step 2: Navigate to profile and intercept the API response
+        print("Navigating to profile and capturing API response...")
+        with page.expect_response(
+            lambda r: '/api/v2/public-profile?userPublicId=' in r.url,
+            timeout=15000
+        ) as response_info:
+            page.goto(PROFILE_URL, wait_until='networkidle', timeout=30000)
 
+        api_response = response_info.value
+        data = api_response.json()
         browser.close()
 
         # Extract data
-        username = api_data.get('username', USERNAME)
-        level = api_data.get('level', 0)
-        rooms = api_data.get('roomsCompleted', 0)
-        rank = api_data.get('rank', 'N/A')
-        created = api_data.get('created')
+        username = data.get('username', USERNAME)
+        user_id = data.get('userPublicId', 'N/A')
+        level = data.get('level', 0)
+        rooms = data.get('roomsCompleted', 0)
+        rank = data.get('rank', 'N/A')
+        created = data.get('created')
         if created:
             created_date = datetime.datetime.fromisoformat(created.replace('Z', '+00:00'))
             days_active = (datetime.datetime.now(datetime.timezone.utc) - created_date).days
         else:
             days_active = 0
 
-        return username, USER_PUBLIC_ID, level, rooms, rank, days_active
+        return username, user_id, level, rooms, rank, days_active
 
 def draw_badge(username, user_id, level, rooms, rank, days_active):
     width, height = 500, 180
