@@ -11,85 +11,50 @@ def fetch_stats():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
-        
-        # Debug: log all requests/responses (optional, remove if too verbose)
-        # page.on('response', lambda r: print(f"RESP: {r.url}"))
 
-        # Navigate and wait for the page to be fully loaded (including API calls)
-        page.goto(PROFILE_URL, wait_until='networkidle')
+        # Step 1: Load the profile page with extra time
+        page.goto(PROFILE_URL, wait_until='networkidle', timeout=60000)
+        # Wait a bit more for any dynamic content
+        page.wait_for_timeout(5000)
 
-        # Try to catch the API response first
-        api_response = None
-        # Wait for a response that includes the public-profile API
-        try:
-            with page.expect_response(
-                lambda r: '/api/v2/public-profile' in r.url,
-                timeout=15000
-            ) as response_info:
-                # Keep the page alive; the response should be captured while it loads
-                # We already loaded the page, but we can trigger a reload if needed
-                # Actually, we've already loaded, so the response may have already happened.
-                # To be safe, we can wait a bit and then check.
-                pass
-            api_response = response_info.value
-        except Exception as e:
-            print(f"API interception timed out: {e}")
-
-        # If we got the API, use it
-        if api_response:
-            data = api_response.json()
-            username = data.get('username', USERNAME)
-            user_id = data.get('userPublicId', 'N/A')
-            level = data.get('level', 0)
-            rooms = data.get('roomsCompleted', 0)
-            rank = data.get('rank', 'N/A')
-            created = data.get('created')
-            if created:
-                created_date = datetime.datetime.fromisoformat(created.replace('Z', '+00:00'))
-                days_active = (datetime.datetime.now(datetime.timezone.utc) - created_date).days
-            else:
-                days_active = 0
-            browser.close()
-            return username, user_id, level, rooms, rank, days_active
-
-        # Fallback: scrape from DOM (using stable selectors)
-        print("API not captured – falling back to DOM scraping.")
-        # Wait for the stats container (commonly a div with class "profile-stats")
-        page.wait_for_selector('.profile-stats', timeout=10000)
-        
-        # Extract username from the page title or a header
-        username_element = page.locator('.profile-header .username')
-        if username_element.count():
-            username = username_element.inner_text().strip()
-        else:
-            username = USERNAME
-
-        # Extract userPublicId – often in a data attribute or from the page source
-        # We can try to get it from the API URL that we might have missed, but we can also parse from the HTML
-        # For now, we'll use a placeholder
-        user_id = page.locator('meta[name="user-id"]').get_attribute('content') or 'N/A'
-
-        # Level
-        level_text = page.locator('.level-badge .level').inner_text().strip()
-        level = int(level_text) if level_text.isdigit() else 0
-
-        # Rooms completed
-        rooms_text = page.locator('.profile-stat .rooms-completed .stat-value').inner_text().strip()
-        rooms = int(rooms_text) if rooms_text.isdigit() else 0
-
-        # Rank
-        rank_text = page.locator('.profile-stat .rank .stat-value').inner_text().strip()
-        rank = rank_text.replace('#', '').strip()
-        if not rank.isdigit():
-            rank = 'N/A'
-
-        # Days active – from "Joined" date
-        joined_text = page.locator('.profile-stat .joined .stat-value').inner_text().strip()
-        # Expect "Joined 2022-01-15"
-        match = re.search(r'(\d{4}-\d{2}-\d{2})', joined_text)
+        # Step 2: Extract userPublicId from the HTML source
+        html = page.content()
+        # Look for something like "userPublicId":12345 or userPublicId=12345
+        match = re.search(r'"userPublicId"\s*:\s*(\d+)', html)
+        if not match:
+            match = re.search(r'userPublicId[=:]\s*["\']?(\d+)["\']?', html)
         if match:
-            created_date = datetime.datetime.strptime(match.group(1), '%Y-%m-%d')
-            days_active = (datetime.datetime.now() - created_date).days
+            user_id = match.group(1)
+            print(f"Extracted userPublicId: {user_id}")
+        else:
+            # Fallback: try to get it from a meta tag or data attribute
+            user_id = page.locator('meta[name="user-id"]').get_attribute('content')
+            if not user_id:
+                # If still not found, we can't proceed
+                browser.close()
+                raise Exception("Could not find userPublicId on the page.")
+            print(f"Found userPublicId from meta: {user_id}")
+
+        # Step 3: Use the browser's fetch to call the API directly
+        api_data = page.evaluate(f"""
+            async () => {{
+                const response = await fetch('/api/v2/public-profile?userPublicId={user_id}', {{
+                    headers: {{ 'Accept': 'application/json' }}
+                }});
+                if (!response.ok) throw new Error('API fetch failed');
+                return await response.json();
+            }}
+        """)
+
+        # Step 4: Extract data
+        username = api_data.get('username', USERNAME)
+        level = api_data.get('level', 0)
+        rooms = api_data.get('roomsCompleted', 0)
+        rank = api_data.get('rank', 'N/A')
+        created = api_data.get('created')
+        if created:
+            created_date = datetime.datetime.fromisoformat(created.replace('Z', '+00:00'))
+            days_active = (datetime.datetime.now(datetime.timezone.utc) - created_date).days
         else:
             days_active = 0
 
@@ -128,5 +93,9 @@ def draw_badge(username, user_id, level, rooms, rank, days_active):
     print("✅ Badge generated successfully!")
 
 if __name__ == "__main__":
-    username, user_id, level, rooms, rank, days = fetch_stats()
-    draw_badge(username, user_id, level, rooms, rank, days)
+    try:
+        username, user_id, level, rooms, rank, days = fetch_stats()
+        draw_badge(username, user_id, level, rooms, rank, days)
+    except Exception as e:
+        print(f"Error: {e}")
+        raise
