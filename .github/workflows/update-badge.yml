@@ -1,31 +1,34 @@
-name: Update Live THM Badge
+name: Update TryHackMe Badge
 
 on:
   schedule:
-    - cron: '0 * * * *'
-  workflow_dispatch:
+    - cron: '0 * * * *'   # every hour
+  workflow_dispatch:      # manual trigger
 
 jobs:
-  generate-badge:
+  generate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Set up Python
+
+      - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
+
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
           playwright install chromium
+          sudo apt-get update && sudo apt-get install -y fonts-dejavu-core
+
       - name: Run badge generator
-        run: python generate_badge.py
-        env:
-          THM_USERNAME: ${{ secrets.THM_USERNAME }}
-      - name: Commit and push
+        run: python scripts/fetch_and_generate.py
+
+      - name: Commit and push changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add docs/tryhackme_badge.png
-          git diff --staged --quiet || git commit -m "Auto-update THM badge [skip ci]"
+          git diff --staged --quiet || git commit -m "Update THM badge [skip ci]"
           git push
