@@ -4,19 +4,24 @@ import os
 from PIL import Image, ImageDraw, ImageFont
 
 def draw_badge(data):
-    username = data.get('username', 'User')
-    user_id = data.get('_id', '')[:6]  # first 6 chars of user ID
-    level = data.get('level', 0)
-    rooms = data.get('completedRoomsNumber', 0)
-    rank = data.get('rank', 'N/A')
-    streak = data.get('streak', 0)
-    created = data.get('dateSignUp')
+    # 🔥 FIX: Access the nested "data" object
+    profile = data.get('data', {})  # <-- this is the fix
+
+    username = profile.get('username', 'User')
+    user_id = profile.get('_id', '')[:6]
+    level = profile.get('level', 0)
+    rooms = profile.get('completedRoomsNumber', 0)
+    rank = profile.get('rank', 'N/A')
+    streak = profile.get('streak', 0)
+
+    created = profile.get('dateSignUp')
     if created:
         created_date = datetime.datetime.fromisoformat(created.replace('Z', '+00:00'))
         days_active = (datetime.datetime.now(datetime.timezone.utc) - created_date).days
     else:
         days_active = 0
 
+    # ─── Drawing code (unchanged) ───
     width, height = 500, 180
     bg = (22, 27, 34)
     border = (48, 54, 61)
