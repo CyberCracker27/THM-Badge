@@ -1,0 +1,38 @@
+{
+  "status": "success",
+  "data": {
+    "_id": "6767ff388eeda5e1981e450f",
+    "avatar": "https://cdn-images.tryhackme.com/user-avatars/d85586044fb96a90df287c7bebfadcf4.jpg",
+    "username": "CyberCracker27",
+    "level": 11,
+    "country": "in",
+    "about": "",
+    "profileBanner": "default",
+    "shouldShowCrown": false,
+    "linkedInUsername": "gopikrishnan-s-84b808341",
+    "githubUsername": "CyberCracker27",
+    "twitterUsername": "",
+    "instagramUsername": "",
+    "personalWebsite": "",
+    "redditUsername": "",
+    "discordUsername": "gopikrishnans_48570",
+    "calendlyUrl": "",
+    "totalPoints": 16785,
+    "displayedCertificateTypes": [],
+    "badgesNumber": 16,
+    "completedRoomsNumber": 158,
+    "streak": 40,
+    "largestStreak": 128,
+    "rank": 49393,
+    "topPercentage": 2,
+    "isInTopTenPercent": true,
+    "badgeImageURL": "https://tryhackme-badges.s3.amazonaws.com/CyberCracker27.png",
+    "userRole": "student",
+    "leagueTier": "platinum",
+    "capabilityScore": {
+      "value": 63.25059999999999,
+      "pov": "red"
+    },
+    "dateSignUp": "2024-12-22T11:59:52.385Z"
+  }
+}
