@@ -76,7 +76,7 @@ def draw_badge():
     username = profile.get('username', 'User')
     raw_id = profile.get('_id', '')
     user_id = raw_id[0] if raw_id else '6'
-    level = profile.get('level', 0)
+    badgesNumber = profile.get('badgesNumber', 0)
     rooms = profile.get('completedRoomsNumber', 0)
     rank = profile.get('rank', 'N/A')
     streak = profile.get('streak', 0)
@@ -181,11 +181,11 @@ def draw_badge():
     draw.text((curr_x, stat_y - 1), streak_str, fill=(225, 230, 240), font=font_regular)
     curr_x += (font_regular.getbbox(streak_str)[2] - font_regular.getbbox(streak_str)[0]) + 14
 
-    # Rosette (Level)
+    # Rosette (badgesNumber)
     draw_rosette(draw, curr_x, stat_y - 1)
     curr_x += 14
-    draw.text((curr_x, stat_y - 1), str(level), fill=(225, 230, 240), font=font_regular)
-    curr_x += (font_regular.getbbox(str(level))[2] - font_regular.getbbox(str(level))[0]) + 14
+    draw.text((curr_x, stat_y - 1), str(badgesNumber), fill=(225, 230, 240), font=font_regular)
+    curr_x += (font_regular.getbbox(str(badgesNumber))[2] - font_regular.getbbox(str(badgesNumber))[0]) + 14
 
     # Door (Rooms)
     draw_door(draw, curr_x, stat_y - 1)
