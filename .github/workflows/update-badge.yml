@@ -1,13 +1,15 @@
-name: Update TryHackMe Badge
+name: Generate TryHackMe Badge
 
 on:
-  schedule:
-    - cron: '0 * * * *'   # every hour
-  workflow_dispatch:      # manual trigger
+  push:
+    paths:
+      - 'data.json'
+  workflow_dispatch:
 
 jobs:
-  generate:
+  build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v3
 
@@ -19,16 +21,15 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          playwright install chromium
           sudo apt-get update && sudo apt-get install -y fonts-dejavu-core
 
-      - name: Run badge generator
-        run: python scripts/fetch_and_generate.py
+      - name: Generate badge
+        run: python generate_badge.py
 
-      - name: Commit and push changes
+      - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add docs/tryhackme_badge.png
-          git diff --staged --quiet || git commit -m "Update THM badge [skip ci]"
+          git diff --staged --quiet || git commit -m "Update badge [skip ci]"
           git push
