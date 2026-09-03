@@ -7,21 +7,21 @@ from PIL import Image, ImageDraw, ImageFont
 
 # ─── 21 Obtainable Levels Table ───
 LEVEL_MAP = {
-    1:  ("0x1", "Neophyte"),
-    2:  ("0x2", "Apprentice"),
-    3:  ("0x3", "Pathfinder"),
-    4:  ("0x4", "Seeker"),
-    5:  ("0x5", "Visionary"),
-    6:  ("0x6", "Voyager"),
-    7:  ("0x7", "Adept"),
-    8:  ("0x8", "Hacker"),
-    9:  ("0x9", "Mage"),
-    10: ("0xa", "Wizard"),
-    11: ("0xb", "Master"),
-    12: ("0xc", "Guru"),
-    13: ("0xd", "Legend"),
-    14: ("0xe", "Guardian"),
-    15: ("0xf", "TITAN"),
+    1:  ("0x1", "NEOPHYTE"),
+    2:  ("0x2", "APPRENTICE"),
+    3:  ("0x3", "PATHFINDER"),
+    4:  ("0x4", "SEEKER"),
+    5:  ("0x5", "VISIONARY"),
+    6:  ("0x6", "VOYAGER"),
+    7:  ("0x7", "ADEPT"),
+    8:  ("0x8", "HACKER"),
+    9:  ("0x9", "MAGE"),
+    10: ("0xA", "WIZARD"),
+    11: ("0xB", "MASTER"),
+    12: ("0xC", "GURU"),
+    13: ("0xD", "LEGEND"),
+    14: ("0xE", "GUARDIAN"),
+    15: ("0xF", "TITAN"),
     16: ("0x10", "SAGE"),
     17: ("0x11", "VANGUARD"),
     18: ("0x12", "SHOGUN"),
@@ -32,8 +32,9 @@ LEVEL_MAP = {
 
 def get_level_tag(level_num):
     if level_num in LEVEL_MAP:
-        return LEVEL_MAP[level_num][0]
-    return f"0x{hex(level_num)[2:]}"
+        hex_tag, title = LEVEL_MAP[level_num]
+        return f"[{hex_tag}][{title}]"
+    return f"[0x{hex(level_num)[2:].upper()}][LEVEL {level_num}]"
 
 # ─── Vector Icon Helpers ───
 def draw_trophy(draw, x, y, color=(140, 155, 175)):
@@ -100,7 +101,7 @@ def draw_badge():
 
     username = profile.get('username', 'User')
     level = profile.get('level', 1)
-    level_tag = get_level_tag(level)  # Level 11 -> "0xb", Level 6 -> "0x6"
+    level_tag = get_level_tag(level)  # Outputs "[0xB][MASTER]" for level 11
 
     badgesNumber = profile.get('badgesNumber', 0)
     rooms = profile.get('completedRoomsNumber', 0)
@@ -110,7 +111,8 @@ def draw_badge():
 
     avatar_img = download_avatar(avatar_url)
 
-    width, height = 480, 110
+    # Expanded width to prevent text collision
+    width, height = 560, 110
     radius = 16
 
     card = Image.new('RGBA', (width, height), (0, 0, 0, 0))
@@ -130,8 +132,8 @@ def draw_badge():
     wave_draw = ImageDraw.Draw(wave_overlay)
     for i in range(16):
         pts = []
-        for x in range(240, width):
-            y = int(52 + 18 * math.sin((x + i * 16) / 38.0) + (x - 240) * 0.12)
+        for x in range(300, width):
+            y = int(52 + 18 * math.sin((x + i * 16) / 38.0) + (x - 300) * 0.12)
             pts.append((x, y))
         wave_draw.line(pts, fill=(46, 160, 67, 18), width=1)
     card = Image.alpha_composite(card, wave_overlay)
@@ -176,7 +178,7 @@ def draw_badge():
         width=2
     )
 
-    # Header: Username + Lightning Bolt + [{level_tag}]
+    # Header: Username + Lightning Bolt + [0xB][MASTER]
     text_x = 108
     draw.text((text_x, 18), username, fill=(255, 255, 255), font=font_bold)
     name_w = font_bold.getbbox(username)[2] - font_bold.getbbox(username)[0]
@@ -186,7 +188,7 @@ def draw_badge():
         [(bolt_x + 4, 19), (bolt_x, 26), (bolt_x + 3, 26), (bolt_x + 1, 32), (bolt_x + 7, 24), (bolt_x + 4, 24)],
         fill=(245, 158, 11)
     )
-    draw.text((bolt_x + 13, 18), f"[{level_tag}]", fill=(190, 200, 215), font=font_bold)
+    draw.text((bolt_x + 13, 18), level_tag, fill=(190, 200, 215), font=font_bold)
 
     # Inline Stats Row
     stat_y = 51
@@ -228,7 +230,7 @@ def draw_badge():
     draw.text((thm_txt_x, 32), "Me", fill=(255, 255, 255), font=font_small)
 
     card.save('docs/tryhackme_badge.png', 'PNG')
-    print(f'✅ Badge generated with level [{level_tag}] and saved to docs/tryhackme_badge.png')
+    print(f'✅ Badge generated with level tag {level_tag} and saved to docs/tryhackme_badge.png')
 
 if __name__ == '__main__':
     draw_badge()
