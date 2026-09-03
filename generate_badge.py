@@ -101,18 +101,19 @@ def draw_badge():
 
     username = profile.get('username', 'User')
     level = profile.get('level', 1)
-    level_tag = get_level_tag(level)  # Outputs "[0xB][MASTER]" for level 11
+    level_tag = get_level_tag(level)
 
     badgesNumber = profile.get('badgesNumber', 0)
     rooms = profile.get('completedRoomsNumber', 0)
     rank = profile.get('rank', 'N/A')
+    top_percentage = profile.get('topPercentage')
     streak = profile.get('streak', 0)
     avatar_url = profile.get('avatar', '')
 
     avatar_img = download_avatar(avatar_url)
 
-    # Expanded width to prevent text collision
-    width, height = 560, 110
+    # Width set to 600 to cleanly accommodate top %, rank, and [0xB][MASTER]
+    width, height = 600, 110
     radius = 16
 
     card = Image.new('RGBA', (width, height), (0, 0, 0, 0))
@@ -132,15 +133,15 @@ def draw_badge():
     wave_draw = ImageDraw.Draw(wave_overlay)
     for i in range(16):
         pts = []
-        for x in range(300, width):
-            y = int(52 + 18 * math.sin((x + i * 16) / 38.0) + (x - 300) * 0.12)
+        for x in range(320, width):
+            y = int(52 + 18 * math.sin((x + i * 16) / 38.0) + (x - 320) * 0.12)
             pts.append((x, y))
         wave_draw.line(pts, fill=(46, 160, 67, 18), width=1)
     card = Image.alpha_composite(card, wave_overlay)
     draw = ImageDraw.Draw(card)
 
     # Fonts
-    font_bold = font_regular = font_small = None
+    font_bold = font_regular = font_small = font_pill = None
     for p in [
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
@@ -152,12 +153,13 @@ def draw_badge():
                 font_bold = ImageFont.truetype(p, 17)
                 font_regular = ImageFont.truetype(p, 13)
                 font_small = ImageFont.truetype(p, 10)
+                font_pill = ImageFont.truetype(p, 9)
                 break
             except Exception:
                 continue
 
     if not font_bold:
-        font_bold = font_regular = font_small = ImageFont.load_default()
+        font_bold = font_regular = font_small = font_pill = ImageFont.load_default()
 
     # Circular Avatar
     avatar_size = 72
@@ -194,26 +196,45 @@ def draw_badge():
     stat_y = 51
     curr_x = text_x
 
-    # Trophy (Rank)
+    # 1. Trophy (Rank) + Top % Badge
     draw_trophy(draw, curr_x, stat_y)
     curr_x += 16
     draw.text((curr_x, stat_y - 1), str(rank), fill=(225, 230, 240), font=font_regular)
-    curr_x += (font_regular.getbbox(str(rank))[2] - font_regular.getbbox(str(rank))[0]) + 14
+    curr_x += (font_regular.getbbox(str(rank))[2] - font_regular.getbbox(str(rank))[0])
 
-    # Flame (Streak)
+    # Draw Top % Pill tag if available
+    if top_percentage:
+        top_str = f"top {top_percentage}%"
+        curr_x += 5
+        pill_w = (font_pill.getbbox(top_str)[2] - font_pill.getbbox(top_str)[0]) + 8
+        pill_h = 13
+        pill_y = stat_y - 1
+        
+        # Subtle dark pill background with golden-orange text
+        draw.rounded_rectangle(
+            [(curr_x, pill_y), (curr_x + pill_w, pill_y + pill_h)],
+            radius=3,
+            fill=(33, 40, 52, 255)
+        )
+        draw.text((curr_x + 4, pill_y + 1), top_str, fill=(245, 180, 50), font=font_pill)
+        curr_x += pill_w + 12
+    else:
+        curr_x += 14
+
+    # 2. Flame (Streak)
     draw_fire(draw, curr_x, stat_y - 1)
     curr_x += 14
     streak_str = f"{streak} days"
     draw.text((curr_x, stat_y - 1), streak_str, fill=(225, 230, 240), font=font_regular)
     curr_x += (font_regular.getbbox(streak_str)[2] - font_regular.getbbox(streak_str)[0]) + 14
 
-    # Rosette (badgesNumber)
+    # 3. Rosette (badgesNumber)
     draw_rosette(draw, curr_x, stat_y - 1)
     curr_x += 14
     draw.text((curr_x, stat_y - 1), str(badgesNumber), fill=(225, 230, 240), font=font_regular)
     curr_x += (font_regular.getbbox(str(badgesNumber))[2] - font_regular.getbbox(str(badgesNumber))[0]) + 14
 
-    # Door (Rooms)
+    # 4. Door (Rooms)
     draw_door(draw, curr_x, stat_y - 1)
     curr_x += 14
     draw.text((curr_x, stat_y - 1), str(rooms), fill=(225, 230, 240), font=font_regular)
@@ -230,7 +251,7 @@ def draw_badge():
     draw.text((thm_txt_x, 32), "Me", fill=(255, 255, 255), font=font_small)
 
     card.save('docs/tryhackme_badge.png', 'PNG')
-    print(f'✅ Badge generated with level tag {level_tag} and saved to docs/tryhackme_badge.png')
+    print(f'✅ Badge generated with top {top_percentage}% and saved to docs/tryhackme_badge.png')
 
 if __name__ == '__main__':
     draw_badge()
