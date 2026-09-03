@@ -5,14 +5,41 @@ import math
 import requests
 from PIL import Image, ImageDraw, ImageFont
 
-# ─── 1. Vector Icon Drawing Functions ───
+# ─── 21 Obtainable Levels Table ───
+LEVEL_MAP = {
+    1:  ("0x1", "Neophyte"),
+    2:  ("0x2", "Apprentice"),
+    3:  ("0x3", "Pathfinder"),
+    4:  ("0x4", "Seeker"),
+    5:  ("0x5", "Visionary"),
+    6:  ("0x6", "Voyager"),
+    7:  ("0x7", "Adept"),
+    8:  ("0x8", "Hacker"),
+    9:  ("0x9", "Mage"),
+    10: ("0xa", "Wizard"),
+    11: ("0xb", "Master"),
+    12: ("0xc", "Guru"),
+    13: ("0xd", "Legend"),
+    14: ("0xe", "Guardian"),
+    15: ("0xf", "TITAN"),
+    16: ("0x10", "SAGE"),
+    17: ("0x11", "VANGUARD"),
+    18: ("0x12", "SHOGUN"),
+    19: ("0x13", "ASCENDED"),
+    20: ("0x14", "MYTHIC"),
+    21: ("0x15", "GRANDMASTER")
+}
+
+def get_level_tag(level_num):
+    if level_num in LEVEL_MAP:
+        return LEVEL_MAP[level_num][0]
+    return f"0x{hex(level_num)[2:]}"
+
+# ─── Vector Icon Helpers ───
 def draw_trophy(draw, x, y, color=(140, 155, 175)):
-    # Cup body
     draw.polygon([(x + 2, y + 2), (x + 10, y + 2), (x + 8, y + 9), (x + 4, y + 9)], fill=color)
-    # Stem & base
     draw.line([(x + 6, y + 9), (x + 6, y + 12)], fill=color, width=2)
     draw.line([(x + 3, y + 12), (x + 9, y + 12)], fill=color, width=2)
-    # Handles
     draw.arc([(x, y + 2), (x + 5, y + 7)], 90, 270, fill=color, width=1)
     draw.arc([(x + 7, y + 2), (x + 12, y + 7)], 270, 90, fill=color, width=1)
 
@@ -33,18 +60,16 @@ def draw_door(draw, x, y, color=(70, 130, 245)):
     draw.point((x + 3, y + 6), fill=(13, 17, 23))
 
 def draw_thm_logo(draw, x, y):
-    # Cloud shapes
     draw.arc([(x, y + 2), (x + 14, y + 14)], 160, 360, fill=(255, 255, 255), width=2)
     draw.arc([(x + 10, y - 2), (x + 24, y + 14)], 190, 360, fill=(255, 255, 255), width=2)
     draw.arc([(x + 18, y + 4), (x + 28, y + 14)], 260, 60, fill=(255, 255, 255), width=2)
     draw.line([(x + 2, y + 14), (x + 26, y + 14)], fill=(255, 255, 255), width=2)
 
-    # Binary bits below cloud
     dots = [(2, 17), (5, 17), (8, 17), (3, 20), (6, 20), (2, 23), (7, 23), (9, 23)]
     for dx, dy in dots:
         draw.rectangle([(x + dx, y + dy), (x + dx + 1, y + dy + 1)], fill=(220, 230, 240))
 
-# ─── 2. Download and Cache Profile Avatar ───
+# ─── Avatar Download ───
 def download_avatar(avatar_url):
     os.makedirs('docs', exist_ok=True)
     avatar_path = os.path.join('docs', 'avatar.jpg')
@@ -66,7 +91,7 @@ def download_avatar(avatar_url):
         return Image.open(avatar_path).convert('RGBA')
     return None
 
-# ─── 3. Main Badge Drawing ───
+# ─── Main Badge Drawing ───
 def draw_badge():
     with open('data.json', 'r') as f:
         data = json.load(f)
@@ -74,25 +99,24 @@ def draw_badge():
     profile = data.get('data', {})
 
     username = profile.get('username', 'User')
-    raw_id = profile.get('_id', '')
-    user_id = raw_id[0] if raw_id else '6'
+    level = profile.get('level', 1)
+    level_tag = get_level_tag(level)  # Level 11 -> "0xb", Level 6 -> "0x6"
+
     badgesNumber = profile.get('badgesNumber', 0)
     rooms = profile.get('completedRoomsNumber', 0)
     rank = profile.get('rank', 'N/A')
     streak = profile.get('streak', 0)
     avatar_url = profile.get('avatar', '')
 
-    # Fetch avatar & save to docs/avatar.jpg
     avatar_img = download_avatar(avatar_url)
 
-    # Exact Canvas Dimensions
     width, height = 480, 110
     radius = 16
 
     card = Image.new('RGBA', (width, height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(card)
 
-    # Background card
+    # Base card
     draw.rounded_rectangle(
         [(0, 0), (width - 1, height - 1)],
         radius=radius,
@@ -101,7 +125,7 @@ def draw_badge():
         width=1
     )
 
-    # Wave graphic overlay on the right side
+    # Wave graphic overlay
     wave_overlay = Image.new('RGBA', (width, height), (0, 0, 0, 0))
     wave_draw = ImageDraw.Draw(wave_overlay)
     for i in range(16):
@@ -152,7 +176,7 @@ def draw_badge():
         width=2
     )
 
-    # Header: Username + Lightning Bolt + [0x...]
+    # Header: Username + Lightning Bolt + [{level_tag}]
     text_x = 108
     draw.text((text_x, 18), username, fill=(255, 255, 255), font=font_bold)
     name_w = font_bold.getbbox(username)[2] - font_bold.getbbox(username)[0]
@@ -162,13 +186,13 @@ def draw_badge():
         [(bolt_x + 4, 19), (bolt_x, 26), (bolt_x + 3, 26), (bolt_x + 1, 32), (bolt_x + 7, 24), (bolt_x + 4, 24)],
         fill=(245, 158, 11)
     )
-    draw.text((bolt_x + 13, 18), f"[0x{user_id}]", fill=(190, 200, 215), font=font_bold)
+    draw.text((bolt_x + 13, 18), f"[{level_tag}]", fill=(190, 200, 215), font=font_bold)
 
-    # Inline Statistics Row
+    # Inline Stats Row
     stat_y = 51
     curr_x = text_x
 
-    # Trophy
+    # Trophy (Rank)
     draw_trophy(draw, curr_x, stat_y)
     curr_x += 16
     draw.text((curr_x, stat_y - 1), str(rank), fill=(225, 230, 240), font=font_regular)
@@ -204,7 +228,7 @@ def draw_badge():
     draw.text((thm_txt_x, 32), "Me", fill=(255, 255, 255), font=font_small)
 
     card.save('docs/tryhackme_badge.png', 'PNG')
-    print('✅ Badge saved to docs/tryhackme_badge.png')
+    print(f'✅ Badge generated with level [{level_tag}] and saved to docs/tryhackme_badge.png')
 
 if __name__ == '__main__':
     draw_badge()
