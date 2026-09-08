@@ -487,12 +487,6 @@ You can contribute by:
 
 ---
 
-# 📜 License
-
-This project is licensed under the **MIT License**.
-
----
-
 # 🙏 Credits
 
 Inspired by GitHub profile stat trackers and LeetCode-style activity badges.
