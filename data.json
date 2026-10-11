@@ -16,22 +16,23 @@
     "redditUsername": "",
     "discordUsername": "gopikrishnans_48570",
     "calendlyUrl": "",
-    "totalPoints": 17855,
+    "totalPoints": 19153,
     "displayedCertificateTypes": [],
     "badgesNumber": 18,
-    "completedRoomsNumber": 161,
-    "streak": 53,
+    "completedRoomsNumber": 168,
+    "streak": 79,
     "largestStreak": 128,
-    "rank": 44874,
+    "rank": 40200,
     "topPercentage": 2,
     "isInTopTenPercent": true,
     "badgeImageURL": "https://tryhackme-badges.s3.amazonaws.com/CyberCracker27.png",
     "userRole": "student",
-    "leagueTier": "platinum",
+    "leagueTier": "sapphire",
     "capabilityScore": {
-      "value": 63.28,
+      "value": 63.41,
       "pov": "red"
     },
+    "isPrivateProfile": false,
     "dateSignUp": "2024-12-22T11:59:52.385Z"
   }
 }
